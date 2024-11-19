@@ -8,9 +8,6 @@ local aiming = false
 local currentTarget = nil
 local aimRange = 100 
 local targetPart = "Head" 
-local aimAssistEnabled = true 
-local toggleCooldown = false 
-local cooldownTime = 3 
 local guiLoaded = false
 
 local function setupGUI()
@@ -30,7 +27,7 @@ local function setupGUI()
     statusLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     statusLabel.TextScaled = true
-    statusLabel.Text = "Aim Assist: Enabled"
+    statusLabel.Text = "Idle"
 
     local aimRangeSlider = Instance.new("TextBox")
     aimRangeSlider.Name = "AimRangeSlider"
@@ -120,36 +117,14 @@ end
 userInputService.InputBegan:Connect(function(input, isProcessed)
     if isProcessed then return end
 
-    if input.UserInputType == Enum.UserInputType.MouseButton2 then
-        if aimAssistEnabled then
-            aiming = true
-            updateStatus("Aiming...", Color3.fromRGB(0, 255, 0))
-        end
-    end
-
-    if input.KeyCode == Enum.KeyCode.T then
-        if not toggleCooldown then
-            aimAssistEnabled = not aimAssistEnabled
-            toggleCooldown = true
-
-            if aimAssistEnabled then
-                updateStatus("Aim Assist: Enabled", Color3.fromRGB(0, 255, 0))
-            else
-                updateStatus("Aim Assist: Disabled", Color3.fromRGB(255, 0, 0))
-            end
-
-            task.delay(cooldownTime, function()
-                toggleCooldown = false
-                updateStatus("Toggle Ready", Color3.fromRGB(255, 255, 255))
-            end)
-        else
-            updateStatus("Cooldown Active", Color3.fromRGB(255, 165, 0))
-        end
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then 
+        aiming = true
+        updateStatus("Aiming...", Color3.fromRGB(0, 255, 0))
     end
 end)
 
 userInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then 
         aiming = false
         updateStatus("Idle", Color3.fromRGB(0, 0, 0))
         currentTarget = nil
@@ -157,7 +132,7 @@ userInputService.InputEnded:Connect(function(input)
 end)
 
 runService.RenderStepped:Connect(function()
-    if aimAssistEnabled and aiming then
+    if aiming then
         if not currentTarget or not currentTarget:IsDescendantOf(workspace) then
             currentTarget = findClosestPlayer()
         end
@@ -168,8 +143,6 @@ runService.RenderStepped:Connect(function()
         else
             updateStatus("No target found", Color3.fromRGB(255, 0, 0))
         end
-    elseif not aimAssistEnabled then
-        currentTarget = nil 
     end
 end)
 
