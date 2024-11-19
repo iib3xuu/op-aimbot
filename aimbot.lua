@@ -97,7 +97,7 @@ local function findClosestPlayer()
     local shortestDistance = math.huge
 
     for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild(targetPart) then
+        if otherPlayer ~= player and otherPlayer.Team ~= player.Team and otherPlayer.Character and otherPlayer.Character:FindFirstChild(targetPart) then
             local part = otherPlayer.Character[targetPart]
             local distance = (part.Position - player.Character.HumanoidRootPart.Position).Magnitude
 
