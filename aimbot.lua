@@ -8,9 +8,8 @@ local aiming = false
 local currentTarget = nil
 local aimRange = 100 
 local targetPart = "Head" 
-local aimAssistEnabled = true 
-local toggleCooldown = false 
-local cooldownTime = 3 
+local aimPredictionEnabled = true 
+local predictionStrength = 1 
 local guiLoaded = false
 
 local function setupGUI()
@@ -30,7 +29,7 @@ local function setupGUI()
     statusLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     statusLabel.TextScaled = true
-    statusLabel.Text = "Aim Assist: Enabled"
+    statusLabel.Text = "Idle"
 
     local aimRangeSlider = Instance.new("TextBox")
     aimRangeSlider.Name = "AimRangeSlider"
@@ -53,24 +52,39 @@ local function setupGUI()
         end
     end)
 
-    local targetPartDropdown = Instance.new("TextBox")
-    targetPartDropdown.Name = "TargetPartDropdown"
-    targetPartDropdown.Parent = screenGui
-    targetPartDropdown.Size = UDim2.new(0.2, 0, 0.05, 0)
-    targetPartDropdown.Position = UDim2.new(0.4, 0, 0.65, 0)
-    targetPartDropdown.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    targetPartDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
-    targetPartDropdown.TextScaled = true
-    targetPartDropdown.Text = targetPart
-    targetPartDropdown.PlaceholderText = "Set Target Part"
+    local predictionToggle = Instance.new("TextButton")
+    predictionToggle.Name = "PredictionToggle"
+    predictionToggle.Parent = screenGui
+    predictionToggle.Size = UDim2.new(0.2, 0, 0.05, 0)
+    predictionToggle.Position = UDim2.new(0.4, 0, 0.65, 0)
+    predictionToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    predictionToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    predictionToggle.TextScaled = true
+    predictionToggle.Text = "Prediction: On"
 
-    targetPartDropdown.FocusLost:Connect(function()
-        local newPart = targetPartDropdown.Text
-        if newPart == "Head" or newPart == "Torso" or newPart == "HumanoidRootPart" then
-            targetPart = newPart
-            statusLabel.Text = "Targeting: " .. targetPart
+    predictionToggle.MouseButton1Click:Connect(function()
+        aimPredictionEnabled = not aimPredictionEnabled
+        predictionToggle.Text = "Prediction: " .. (aimPredictionEnabled and "On" or "Off")
+    end)
+
+    local predictionStrengthSlider = Instance.new("TextBox")
+    predictionStrengthSlider.Name = "PredictionStrengthSlider"
+    predictionStrengthSlider.Parent = screenGui
+    predictionStrengthSlider.Size = UDim2.new(0.2, 0, 0.05, 0)
+    predictionStrengthSlider.Position = UDim2.new(0.4, 0, 0.55, 0)
+    predictionStrengthSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    predictionStrengthSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
+    predictionStrengthSlider.TextScaled = true
+    predictionStrengthSlider.Text = tostring(predictionStrength)
+    predictionStrengthSlider.PlaceholderText = "Set Prediction Strength"
+
+    predictionStrengthSlider.FocusLost:Connect(function()
+        local newStrength = tonumber(predictionStrengthSlider.Text)
+        if newStrength and newStrength > 0 then
+            predictionStrength = newStrength
+            statusLabel.Text = "Prediction Strength: " .. tostring(predictionStrength)
         else
-            targetPartDropdown.Text = targetPart 
+            predictionStrengthSlider.Text = tostring(predictionStrength) 
         end
     end)
 end
@@ -90,6 +104,12 @@ local function smoothAim(target)
     if target then
         local targetPosition = target.Position
         local cameraPosition = camera.CFrame.Position
+
+        if aimPredictionEnabled and target.Parent and target.Parent:FindFirstChild("HumanoidRootPart") then
+            local velocity = target.Parent.HumanoidRootPart.Velocity
+            targetPosition = targetPosition + (velocity * predictionStrength)
+        end
+
         local aimDirection = (targetPosition - cameraPosition).Unit
         camera.CFrame = CFrame.new(cameraPosition, cameraPosition + aimDirection)
     end
@@ -120,36 +140,14 @@ end
 userInputService.InputBegan:Connect(function(input, isProcessed)
     if isProcessed then return end
 
-    if input.UserInputType == Enum.UserInputType.MouseButton2 then
-        if aimAssistEnabled then
-            aiming = true
-            updateStatus("Aiming...", Color3.fromRGB(0, 255, 0))
-        end
-    end
-
-    if input.KeyCode == Enum.KeyCode.T then
-        if not toggleCooldown then
-            aimAssistEnabled = not aimAssistEnabled
-            toggleCooldown = true
-
-            if aimAssistEnabled then
-                updateStatus("Aim Assist: Enabled", Color3.fromRGB(0, 255, 0))
-            else
-                updateStatus("Aim Assist: Disabled", Color3.fromRGB(255, 0, 0))
-            end
-
-            task.delay(cooldownTime, function()
-                toggleCooldown = false
-                updateStatus("Toggle Ready", Color3.fromRGB(255, 255, 255))
-            end)
-        else
-            updateStatus("Cooldown Active", Color3.fromRGB(255, 165, 0))
-        end
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then 
+        aiming = true
+        updateStatus("Aiming...", Color3.fromRGB(0, 255, 0))
     end
 end)
 
 userInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then 
         aiming = false
         updateStatus("Idle", Color3.fromRGB(0, 0, 0))
         currentTarget = nil
@@ -157,7 +155,7 @@ userInputService.InputEnded:Connect(function(input)
 end)
 
 runService.RenderStepped:Connect(function()
-    if aimAssistEnabled and aiming then
+    if aiming then
         if not currentTarget or not currentTarget:IsDescendantOf(workspace) then
             currentTarget = findClosestPlayer()
         end
@@ -168,8 +166,6 @@ runService.RenderStepped:Connect(function()
         else
             updateStatus("No target found", Color3.fromRGB(255, 0, 0))
         end
-    elseif not aimAssistEnabled then
-        currentTarget = nil 
     end
 end)
 
